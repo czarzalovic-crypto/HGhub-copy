@@ -1,0 +1,32 @@
+name: Deliver Windows installer
+on:
+  workflow_dispatch:
+  push:
+    branches: [deliver-windows]
+permissions:
+  actions: read
+  contents: write
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download verified Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: windows
+          run-id: 43092032873
+          github-token: ${{ github.token }}
+          path: windows
+      - name: Verify installer integrity
+        working-directory: windows
+        run: |
+          echo '75f8e7e1f24ceb3ca3e9f9d0f56fffef38758a7d5cbf193c77853317a2fc8d7d  HGhub_1.2.1_x64-setup.exe' | sha256sum --check
+          echo '2eeb6194f6e13a42129d208803878266b94d894c83ef56b1b12d0078e16ba5b3  HGhub_1.2.1_x64_portable.zip' | sha256sum --check
+          sha256sum HGhub_1.2.1_x64-setup.exe HGhub_1.2.1_x64_portable.zip > SHA256SUMS.txt
+      - name: Upload to private draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view windows-1.2.1-download --json isDraft --jq '.isDraft' | grep -qx true
+          gh release upload windows-1.2.1-download windows/HGhub_1.2.1_x64-setup.exe windows/HGhub_1.2.1_x64_portable.zip windows/SHA256SUMS.txt --clobber
